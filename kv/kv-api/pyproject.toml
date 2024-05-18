@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kv-api"
+version = "0.1.19"
+authors = [
+  {name="Marcel Claramunt", email="marcel@moveread.com"}
+]
+description = "Interface for any Key-Value DB. Completely exception-free, and backed by `haskellian` for powerful composability"
+dependencies = [
+  "haskellian", "lazy-loader", "typing-extensions"
+]
+requires-python = ">=3.10"
+readme = {file="README.md", content-type="text/markdown"}
+
+[project.urls]
+repo = "https://github.com/marciclabas/python-storage"
+home = "https://github.com/marciclabas/python-storage/tree/main/kv/kv-api"
+
+# [project.optional-dependencies]
+# test = [
+#   "pytest < 5.0.0",
+#   "pytest-cov[all]"
+# ]

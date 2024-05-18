@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kv-sqlite-sync"
+version = "0.1.13"
+authors = [
+  {name="Marcel Claramunt", email="marcel@moveread.com"}
+]
+description = "Key-Value interface over SQLite. Supports any datatype, including JSON and BLOB"
+dependencies = [
+  "kv-api", "haskellian", "lazy-loader", "typing-extensions"
+]
+requires-python = ">=3.10"
+readme = {file="README.md", content-type="text/markdown"}
+
+[project.urls]
+repo = "https://github.com/marciclabas/python-storage"
+home = "https://github.com/marciclabas/python-storage/tree/main/kv/kv-sqlite-sync"
+
+# [project.optional-dependencies]
+# test = [
+#   "pytest < 5.0.0",
+#   "pytest-cov[all]"
+# ]

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kv-rest"
+version = "0.1.2"
+authors = [
+  {name="Marcel Claramunt", email="marcel@moveread.com"}
+]
+description = "Rest API and client for a server-side KV"
+dependencies = [
+  "kv-api", "pydantic", "haskellian"
+]
+requires-python = ">=3.10"
+readme = {file="README.md", content-type="text/markdown"}
+
+[project.urls]
+repo = "https://github.com/marciclabas/python-storage.git"
+
+[project.optional-dependencies]
+server = ["fastapi", "python-multipart"]
+client = ["httpx"]
+cli = ["dslog", "uvicorn[standard]"]
+sqlite = ["kv-sqlite-sync"]
+fs = ["kv-fs"]
+
+[project.scripts]
+kv-rest = "kv.rest.cli:main"

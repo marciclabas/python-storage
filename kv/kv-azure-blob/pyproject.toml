@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kv-azure-blob"
+version = "0.1.5"
+authors = [
+  {name="Marcel Claramunt", email="marcel@moveread.com"}
+]
+description = "KV API implementation on Azure Blob Storage"
+dependencies = [
+  "azure-storage-blob", "aiohttp", "haskellian", "lazy-loader"
+]
+requires-python = ">=3.10"
+readme = {file="README.md", content-type="text/markdown"}
+
+[project.urls]
+repo = "https://github.com/marciclabas/python-storage.git"
+
+# [project.optional-dependencies]
+# test = [
+#   "pytest < 5.0.0",
+#   "pytest-cov[all]"
+# ]

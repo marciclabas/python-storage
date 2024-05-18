@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "queue-kv"
+version = "0.1.6"
+authors = [
+  {name="Marcel Claramunt", email="marcel@moveread.com"}
+]
+description = "Queue implementation based on `kv.api`"
+dependencies = [
+  "queue-api", "kv-api", "pydantic", "lazy-loader"
+]
+requires-python = ">=3.10"
+readme = {file="README.md", content-type="text/markdown"}
+
+[project.urls]
+repo = "https://github.com/marciclabas/python-storage.git"
+
+[project.optional-dependencies]
+fs = ["kv-fs"]
+sqlite = ["kv-sqlite-sync"]
+
+# test = [
+#   "pytest < 5.0.0",
+#   "pytest-cov[all]"
+# ]

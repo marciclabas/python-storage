@@ -1,0 +1,32 @@
+VENV := "../../.venv"
+BIN := "../../.venv/bin"
+PYTHON := "../../.venv/bin/python"
+PKG := "."
+
+help:
+  @just --list
+
+# Build the package (into `dist/`)
+build:
+  cd {{PKG}} && \
+  rm -drf dist && \
+  {{PYTHON}} -m build && \
+  rm -drf build
+
+# Publish `dist/*` to pypi, then delete
+publish:
+  cd {{PKG}} && \
+  {{PYTHON}} -m twine upload dist/* && \
+  rm -drf dist
+
+# Increase patch version
+patch:
+  $BUMP {{PKG}}/pyproject.toml
+
+# Build and publish
+republish: patch build publish
+
+clientgen:
+  {{PYTHON}} -m kv.rest.clientgen_cli -p kv-rest-client
+
+generate-client: clientgen

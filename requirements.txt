@@ -1,0 +1,10 @@
+build
+ipykernel
+twine
+python-dotenv
+-e fs-tools
+-e kv/kv-api
+-e kv/kv-fs
+-e kv/kv-sqlite-sync
+-e queue/queue-api
+-e queue/queue-kv
