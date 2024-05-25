@@ -52,7 +52,7 @@ def parse(conn_str: str, type: type[T] | None = None) -> KV[T]:
     if (parsed_sql := parse_sql(conn_str)) is not None:
         from sqlalchemy import create_engine
         from kv.sql import SQLKV
-        engine = create_engine(parsed_sql.conn_str)
+        engine = lambda: create_engine(parsed_sql.conn_str)
         return SQLKV(type or dict, engine, table=parsed_sql.table) # type: ignore
     
     raise ValueError(f"Invalid connection string: {conn_str}")

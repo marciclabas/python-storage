@@ -1,4 +1,4 @@
-from typing_extensions import AsyncIterable, Sequence, TypeVar, Generic
+from typing_extensions import AsyncIterable, Sequence, TypeVar, Generic, Callable
 from pydantic import RootModel
 from haskellian import Either, Left, Right
 from sqlmodel import Session, select
@@ -14,7 +14,7 @@ T = TypeVar('T')
 class SQLKV(KV[T], Generic[T]):
   """Key-Value implementation over sqlalchemy"""
   
-  def __init__(self, Type: type[T], engine: Engine, table: str = 'kv'):
+  def __init__(self, Type: type[T], engine: Callable[[], Engine], table: str = 'kv'):
     self.Type = RootModel[Type]
     self.engine = engine
 
@@ -27,11 +27,11 @@ class SQLKV(KV[T], Generic[T]):
       value: Mapped[RootModel[Type]] = mapped_column(type_=PydanticModel(self.Type))
 
     self.Table = Table
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine())
 
   async def _delete(self, key: str) -> Either[DBError | InexistentItem, None]:
     try:
-      with Session(self.engine) as session:
+      with Session(self.engine()) as session:
         stmt = select(self.Table).where(self.Table.key == key)
         row = session.exec(stmt).first()
         if row is None:
@@ -44,7 +44,7 @@ class SQLKV(KV[T], Generic[T]):
 
   async def _read(self, key: str) -> Either[DBError | InvalidData | InexistentItem, T]:
     try:
-      with Session(self.engine) as session:
+      with Session(self.engine()) as session:
         stmt = select(self.Table).where(self.Table.key == key)
         row = session.exec(stmt).first()
         if row is None:
@@ -55,7 +55,7 @@ class SQLKV(KV[T], Generic[T]):
 
   async def _insert(self, key: str, value: T) -> Either[DBError, None]:
     try:
-      with Session(self.engine) as session:
+      with Session(self.engine()) as session:
         stmt = select(self.Table).where(self.Table.key == key)
         row = session.exec(stmt).first()
         if row is not None:
@@ -68,7 +68,7 @@ class SQLKV(KV[T], Generic[T]):
 
   async def _keys(self) -> Either[DBError, Sequence[str]]:
     try:
-      with Session(self.engine) as session:
+      with Session(self.engine()) as session:
         stmt = select(self.Table.key)
         return Right(session.exec(stmt).all())
     except DatabaseError as e:
@@ -76,7 +76,7 @@ class SQLKV(KV[T], Generic[T]):
 
   async def _items(self, batch_size: int | None = None) -> AsyncIterable[Either[DBError | InvalidData, tuple[str, T]]]:
     try:
-      with Session(self.engine) as session:
+      with Session(self.engine()) as session:
         result = session.exec(select(self.Table))
         while (batch := result.fetchmany(batch_size)) != []:
           for row in batch:

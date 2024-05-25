@@ -32,7 +32,7 @@ class FilesystemKV(LocatableKV[T], Generic[T]):
   def _path(self, key: str) -> str:
     return os.path.abspath(os.path.join(self.base_path, f'{key}{self.extension or ""}'))
   
-  def url(self, id: str) -> str:
+  def url(self, id: str, *, expiry = None) -> str:
     return self._path(id)
   
   def _key(self, path: str) -> str:
@@ -76,7 +76,7 @@ class FilesystemKV(LocatableKV[T], Generic[T]):
 
   async def _copy(self, key: str, to: 'KV[T]', to_key: str) -> E.Either[DBError|InexistentItem, None]:
     if not isinstance(to, FilesystemKV):
-      return await super().copy(key, to, to_key)
+      return await super()._copy(key, to, to_key)
     
     match fs.copy(self._path(key), to._path(to_key)):
       case E.Right():
