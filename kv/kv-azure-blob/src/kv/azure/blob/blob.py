@@ -1,5 +1,6 @@
 from typing import TypeVar, Generic, Callable, Awaitable, AsyncIterable, Sequence, overload
 from dataclasses import dataclass
+from datetime import datetime
 from haskellian import asyn_iter as AI, iter as I, either as E, Either, Right, promise as P
 from kv.api import LocatableKV, InvalidData, DBError
 from kv.azure.blob import BlobContainerKV
@@ -97,6 +98,6 @@ class BlobKV(LocatableKV[A], Generic[A]):
       async for item in self._kv(container).items(batch_size):
         yield item
 
-  def url(self, key: str) -> str:
+  def url(self, key: str, *, expiry: datetime | None = None) -> str:
     container, blob = self.split_key(key)
-    return self._kv(container).url(blob)
+    return self._kv(container).url(blob, expiry=expiry)

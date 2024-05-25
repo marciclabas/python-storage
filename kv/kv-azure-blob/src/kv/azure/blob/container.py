@@ -1,6 +1,7 @@
 from typing import TypeVar, Generic, Callable, ParamSpec, Awaitable, Never, Sequence, AsyncIterable
 from functools import wraps
 from dataclasses import dataclass
+from datetime import datetime
 from haskellian import either as E, Either, Left, Right, asyn_iter as AI
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob.aio import ContainerClient
@@ -82,6 +83,6 @@ class BlobContainerKV(LocatableKV[A], Generic[A]):
       else:
         yield Right((key, item.value))
 
-  def url(self, key: str) -> str:
+  def url(self, key: str, *, expiry: datetime | None = None) -> str:
     bc = self.client().get_blob_client(key)
-    return blob_url(bc)
+    return blob_url(bc, expiry=expiry)

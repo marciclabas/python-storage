@@ -17,7 +17,7 @@ class SQLKV(KV[T], Generic[T]):
     self.Type = RootModel[Type]
     self.engine = engine
 
-    class Table(SQLModel, table=True):
+    class Table(SQLModel, table=True, extend=True):
       __tablename__ = table # type: ignore (duh)
       key: str = Field(primary_key=True)
       value: RootModel[Type] = Field(sa_type=PydanticModel(self.Type))
