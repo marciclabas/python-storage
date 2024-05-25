@@ -1,8 +1,9 @@
 from typing_extensions import AsyncIterable, Sequence, TypeVar, Generic
 from pydantic import RootModel
-from haskellian import Either, Left, Right, either as E
-from sqlmodel import Session, SQLModel, Field, select
+from haskellian import Either, Left, Right
+from sqlmodel import Session, select
 from sqlalchemy import Engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.exc import DatabaseError
 from sqltypes import PydanticModel
 from kv.api import KV
@@ -17,13 +18,16 @@ class SQLKV(KV[T], Generic[T]):
     self.Type = RootModel[Type]
     self.engine = engine
 
-    class Table(SQLModel, table=True, extend=True):
-      __tablename__ = table # type: ignore (duh)
-      key: str = Field(primary_key=True)
-      value: RootModel[Type] = Field(sa_type=PydanticModel(self.Type))
+    class Base(DeclarativeBase):
+      ...
+
+    class Table(Base):
+      __tablename__ = table
+      key: Mapped[str] = mapped_column(primary_key=True)
+      value: Mapped[RootModel[Type]] = mapped_column(type_=PydanticModel(self.Type))
 
     self.Table = Table
-    SQLModel.metadata.create_all(engine)
+    Base.metadata.create_all(engine)
 
   async def _delete(self, key: str) -> Either[DBError | InexistentItem, None]:
     try:
