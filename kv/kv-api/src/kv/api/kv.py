@@ -6,6 +6,17 @@ from .errors import InexistentItem, DBError, InvalidData, ReadError
 T = TypeVar('T')
 
 class KV(ABC, Generic[T]):
+
+  @classmethod
+  def of(cls, conn_str: str, type: type[T] | None = None) -> 'KV[T]':
+    """Create a KV from a connection string. Supports:
+    - `file://<path>`: `FilesystemKV`
+    - `sql+<protocol>://<conn_str>;Table=<table>`: `SQLKV`
+    - `azure+blob://<conn_str>`: `BlobKV`
+    - `azure+blob+container://<conn_str>;Container=<container_name>`: `BlobContainerKV`
+    """
+    from .conn_strings import parse
+    return parse(conn_str, type)
   
   @abstractmethod
   def _insert(self, key: str, value: T) -> Awaitable[Either[DBError, None]]: ...
