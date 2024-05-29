@@ -2,10 +2,14 @@ from .io import append, delete, write, read, update
 from .moving import move, copy
 from .paths import ensure_path, filenames
 from .compression import gzcompress
+from .parallel import chunked_read, parallel_map
+from .reading import concat_lines
 
 __all__ = [
   'append', 'delete', 'write', 'read', 'update',
   'move', 'copy',
   'ensure_path', 'filenames',
-  'gzcompress'
+  'gzcompress',
+  'chunked_read', 'parallel_map',
+  'concat_lines',
 ]
