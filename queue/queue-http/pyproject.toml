@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "queue-http"
+version = "0.1.0"
+authors = [
+  {name="Marcel Claramunt", email="marcel@moveread.com"}
+]
+description = "HTTP Client-Server Read-Write Queue implementation"
+dependencies = [
+  "queue-api", "haskellian"
+]
+requires-python = ">=3.10"
+readme = {file="README.md", content-type="text/markdown"}
+
+[project.urls]
+repo = "https://github.com/moveread/REPO.git"
+
+[project.optional-dependencies]
+server = ["fastapi"]
+client = ["httpx"]
+# test = [
+#   "pytest < 5.0.0",
+#   "pytest-cov[all]"
+# ]

@@ -6,6 +6,7 @@ mod kv-sqlite-sync "kv/kv-sqlite-sync/Justfile"
 mod kv-azure-blob "kv/kv-azure-blob/Justfile"
 mod queue-api "queue/queue-api/Justfile"
 mod queue-kv "queue/queue-kv/Justfile"
+mod queue-http "queue/queue-http/Justfile"
 mod fs-tools
 mod sqltypes
 

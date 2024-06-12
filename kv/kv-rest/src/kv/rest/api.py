@@ -1,7 +1,6 @@
 from typing import TypeVar, Sequence, Any, ParamSpec, Callable, Awaitable
 from functools import wraps
 import inspect
-from pydantic import RootModel
 from fastapi import FastAPI, Response, status as st
 from haskellian import Either, kwargs as kw
 from kv.api import KV, DBError, ReadError
