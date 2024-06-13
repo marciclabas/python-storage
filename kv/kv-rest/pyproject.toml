@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kv-rest"
-version = "0.1.2"
+version = "0.1.9"
 authors = [
   {name="Marcel Claramunt", email="marcel@moveread.com"}
 ]
@@ -26,4 +26,4 @@ sqlite = ["kv-sqlite-sync"]
 fs = ["kv-fs"]
 
 [project.scripts]
-kv-rest = "kv.rest.cli:main"
+kv-server = "kv.rest.cli:main"

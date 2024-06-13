@@ -2,37 +2,27 @@ from argparse import ArgumentParser
 
 def main():
   parser = ArgumentParser(description='KV REST API')
-  parser.add_argument('PATH', help='Path to KV')
+  parser.add_argument('CONN_STR', help='KV connection string')
   parser.add_argument('-p', '--port', type=int, default=8000)
   parser.add_argument('--host', default='0.0.0.0')
-  parser.add_argument('--protocol', default='sqlite', choices=['fs','sqlite'])
 
   args = parser.parse_args()
 
-  proto = args.protocol
-  path = args.PATH
-
-  from typing import Any; AnyT: type = Any # type: ignore
-  import uvicorn
-  from dslog import Logger, util
-  from kv.rest import fastapi
+  from dslog import Logger
   logger = Logger.rich().prefix('[KV API]')
 
   logger('Starting KV API')
-  logger('- Protocol:', proto)
-  logger('- Path:', path)
+  logger('- Connection string:', args.CONN_STR)
 
-  if proto == 'fs':
-    from kv.fs import FilesystemKV
-    kv = FilesystemKV.validated(AnyT, path)
-  else:
-    from kv.sqlite import SQLiteKV
-    kv = SQLiteKV.validated(AnyT, path)
+  import uvicorn
+  from kv.rest import api
+  from kv.api import KV
 
-  app = fastapi(kv)
-  uvicorn.run(app, host=args.host, port=args.port, log_config=util.uvicorn_logconfig('[KV API] '))
+  kv = KV.of(args.CONN_STR)
+  app = api(kv)
+  uvicorn.run(app, host=args.host, port=args.port)
 
 if __name__ == '__main__':
   import sys
-  sys.argv.append('demo.sqlite')
+  sys.argv.append('file://demo')
   main()

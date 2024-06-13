@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from q.http import server
+from q.http.server import api
 from q.kv import QueueKV
 
-queue = QueueKV.sqlite(dict, 'queue.sqlite')
+# kv = FilesystemKV[bytes]('blobs')
+# app = api(kv)
 
-app = FastAPI()
-app.mount('/read', server.read_api(queue, timeout=2))
-app.mount('/write', server.write_api(queue))
+queue = QueueKV.sqlite(dict, 'queue.sqlite')
+app = api(queue, Type=dict)
 
 @app.get('/')
 def home():

@@ -1,4 +1,4 @@
-from typing import ParamSpec, TypeVar, Awaitable, Callable
+from typing import ParamSpec, TypeVar, Coroutine, Callable, Any
 from functools import wraps
 import inspect
 from fastapi import Response, status as st
@@ -16,11 +16,11 @@ def status(e: Either[ReadError, T]):
   else:
     return st.HTTP_404_NOT_FOUND
 
-def with_status(func: Callable[Ps, Awaitable[Either[ReadError, T]]]):
+def with_status(func: Callable[Ps, Coroutine[Either[ReadError, T], Any, Any]]):
   @wraps(func)
-  async def wrapper(response: Response, *args: Ps.args, **kwargs: Ps.kwargs) -> Either[ReadError, T]:
+  async def wrapper(response: Response, *args: Ps.args, **kwargs: Ps.kwargs) -> ReadError | T:
     e = await func(*args, **kwargs)
     response.status_code = status(e)
-    return e
+    return e.value
   wrapper.__signature__ = kw.add_kw(inspect.signature(wrapper), 'response', Response) # type: ignore
   return wrapper

@@ -1,56 +1,56 @@
-from typing import TypeVar, Generic, AsyncIterable, Sequence
-from pydantic import RootModel
-import httpx
-from haskellian import Either, Left, Thunk, asyn_iter as AI
+from typing import TypeVar, Generic, AsyncIterable, Callable, Sequence
+from pydantic import TypeAdapter
+from haskellian import Either, Left, Right, asyn_iter as AI
 from q.api import ReadQueue, ReadError, QueueError
+from .util import request, urljoin
 
 T = TypeVar('T')
 
-async def safe_get(url: str, params: dict | None = None):
-  try:
-    async with httpx.AsyncClient() as client:
-      r = await client.get(url, params=params)
-      return r.json()
-  except Exception as e:
-    return Left(QueueError(str(e)))
-  
-def safe_validate(itemsponse, Root: type[RootModel]):
-  try:
-    return Root.model_validate(itemsponse).root
-  except Exception as e:
-    return Left(QueueError(str(e)))
-  
+KeysType = TypeAdapter(Sequence[Either[QueueError, str]])
 
+def validate_seq(raw_json: bytes) -> Sequence[Either[QueueError, str]]:
+  try:
+    return KeysType.validate_json(raw_json)
+  except Exception as e:
+    return [Left(QueueError(e))]
+
+  
 class ReadClientQ(ReadQueue[T], Generic[T]):
     
-  def __init__(self, Type: type[T], url: str):
+  def __init__(
+    self, url: str, *,
+    parse: Callable[[bytes], Either[QueueError, T]] = Right,
+  ):
     self.read_url = url
-    self.ReadModel = Thunk(lambda: RootModel[Either[ReadError, tuple[str, Type]]])
-    self.ItemsModel = Thunk(lambda: RootModel[Sequence[Either[ReadError, tuple[str, Type]]]])
-    self.KeysModel = Thunk(lambda: RootModel[Sequence[Either[ReadError, str]]])
+    self.parse = parse
 
   async def _read(self, id: str | None, remove: bool) -> Either[ReadError, tuple[str, T]]:
-    params: dict = { 'remove': remove }
-    if id:
-      params['id']
-    r = await safe_get(f'{self.read_url}/read', params)
-    return safe_validate(r, self.ReadModel())
+    
+    if id is None: # read any -> returns an arbitrary id
+      url = urljoin(self.read_url, 'read/any')
+      r = await request(url, 'GET')
+      if r.tag == 'left':
+        return r
+      id = r.unsafe().decode()
+
+    url = urljoin(self.read_url, 'read')
+    data = await request(url, 'GET', params=dict(id=id, remove=remove))
+    return data.bind(self.parse).fmap(lambda val: (id, val))
     
   async def _items(self) -> AsyncIterable[Either[QueueError, tuple[str, T]]]:
-    r = await safe_get(f'{self.read_url}/items')
-    items = safe_validate(r, self.ItemsModel())
-    if isinstance(items, Left):
-      yield items
-      return
-    for item in items:
-      yield item # type: ignore
+    keys = await self.keys().sync()
+    for key in keys:
+      if key.tag == 'left':
+        yield Left(key.value)
+      else:
+        yield (await self._read(key.value, remove=False)).mapl(QueueError)
 
   @AI.lift
-  async def keys(self) -> AsyncIterable[Either[ReadError, str]]:
-    r = await safe_get(f'{self.read_url}/keys')
-    items = safe_validate(r, self.KeysModel())
-    if isinstance(items, Left):
-      yield items
-      return
-    for item in items:
-      yield item # type: ignore
+  async def keys(self) -> AsyncIterable[Either[QueueError, str]]:
+    url = urljoin(self.read_url, 'keys')
+    r = await request(url, 'GET')
+    if r.tag == 'left':
+      yield r
+    else:
+      for key in validate_seq(r.value):
+        yield key

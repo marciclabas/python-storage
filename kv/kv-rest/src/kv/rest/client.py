@@ -1,64 +1,74 @@
-from typing import TypeVar, Generic, Any, Literal, AsyncIterable, Sequence
-from pydantic import RootModel
+from typing import TypeVar, Generic, Any, Literal, AsyncIterable, Sequence, Callable
+from pydantic import TypeAdapter, RootModel
 import httpx
-from haskellian import either as E, Either, Left, Right, Thunk
+from haskellian import either as E, Either, Left, Right
 from kv.api import KV, InvalidData, ReadError, DBError
 
 A = TypeVar('A')
-Root = TypeVar('Root', bound=RootModel)
+ErrType = TypeAdapter(ReadError)
+SeqType = TypeAdapter(Sequence[str])
 
-def root_validate(x: Any, Model: type[Root]) -> Either[InvalidData, Root]:
-  return E.validate(x, Model).mapl(InvalidData)
+def validate_left(raw_json: bytes) -> Left[DBError, Any]:
+  try:
+    return Left(ErrType.validate_json(raw_json))
+  except Exception as e:
+    return Left(DBError(e))
+  
+def validate_seq(raw_json: bytes) -> Either[DBError, Sequence[str]]:
+  try:
+    return Right(SeqType.validate_json(raw_json))
+  except Exception as e:
+    return Left(DBError(e))
 
 class ClientKV(KV[A], Generic[A]):
-  def __init__(self, endpoint: str, Type: type[A]):
+  def __init__(
+    self, endpoint: str, *,
+    parse: Callable[[bytes], Either[InvalidData, A]] = Right, # type: ignore
+    dump: Callable[[A], bytes|str] = lambda x: x # type: ignore
+  ):
     self.endpoint = endpoint
-    self.client = httpx.AsyncClient()
-    self.ReadModel = Thunk(lambda: RootModel[Either[ReadError, Type]])
-    self.DBErrModel = Thunk(lambda: RootModel[Either[DBError, None]])
-    self.Model = Thunk(lambda: RootModel[Type])
-    self.ItemsModel = Thunk(lambda: RootModel[Sequence[Either[DBError, tuple[str, Type]]]])
-    self.KeysModel = Thunk(lambda: RootModel[Either[DBError, Sequence[str]]])
-  
-  def __del__(self):
-    import asyncio
-    asyncio.create_task(self.client.aclose())
+    self.parse = parse
+    self.dump = dump
 
-  async def _req(self, method: Literal['GET', 'POST', 'DELETE'], path: str, json = None):
+  @classmethod
+  def validated(cls, Type: type[A], endpoint: str) -> 'ClientKV[A]':
+    Model = RootModel[Type]
+    return ClientKV(
+      endpoint=endpoint,
+      parse=lambda b: E.validate_json(b, Model).fmap(lambda x: x.root).mapl(InvalidData),
+      dump=lambda x: Model(x).model_dump_json(exclude_none=True)
+    )
+  
+  async def _req(self, method: Literal['GET', 'POST', 'DELETE'], path: str, data: bytes | str | None = None):
     try:
-      r = await self.client.request(method, f"{self.endpoint}/{path}", json=json)
-      return Right(r.json())
+      async with httpx.AsyncClient() as client:
+        r = await client.request(method, f"{self.endpoint}/{path}", data=data) # type: ignore
+        return Right(r.content) if r.status_code == 200 else validate_left(r.content)
     except Exception as e:
       return Left(DBError(e))
 
-  @E.do[ReadError]()
   async def _read(self, key: str):
-    r = (await self._req('GET', f'read?key={key}')).unsafe()
-    return root_validate(r, self.ReadModel.get()).unsafe().root.unsafe()
+    r = await self._req('GET', f'read?key={key}')
+    return r.bind(self.parse)
   
-  @E.do[DBError]()
   async def _insert(self, key: str, value: A):
-    r = (await self._req('POST', f'insert?key={key}', json=self.Model.get()(value).model_dump())).unsafe()
-    return root_validate(r, self.DBErrModel.get()).unsafe().root.unsafe()
+    r = await self._req('POST', f'insert?key={key}', data=self.dump(value))
+    return r.fmap(lambda _: None)
     
-  @E.do[DBError]()
   async def _delete(self, key: str):
-    r = (await self._req('DELETE', f'delete?key={key}')).unsafe()
-    return root_validate(r, self.DBErrModel.get()).unsafe().root.unsafe()
+    r = await self._req('DELETE', f'delete?key={key}')
+    return r.fmap(lambda _: None)
 
   async def _items(self, batch_size: int | None = None) -> AsyncIterable[Either[DBError | InvalidData, tuple[str, A]]]:
-    r = await self._req('GET', 'items')
-    if r.tag == 'left':
-      yield Left(r.value)
-      return
-    items = root_validate(r.value, self.ItemsModel.get())
-    if items.tag == 'left':
-      yield Left(items.value)
-      return
-    for it in items.value.root:
-      yield it
+    keys = await self._keys()
+    if keys.tag == 'left':
+      yield Left(keys.value)
+    else:
+      for key in keys.value:
+        val = await self._read(key)
+        yield val.fmap(lambda v: (key, v))
 
-  @E.do[DBError]()
-  async def _keys(self) -> Sequence[str]:
-    r = (await self._req('GET', 'keys')).unsafe()
-    return root_validate(r, self.KeysModel.get()).unsafe().root.unsafe()
+  async def _keys(self) -> Either[DBError, Sequence[str]]:
+    r = await self._req('GET', 'keys')
+    return r.bind(validate_seq)    
+

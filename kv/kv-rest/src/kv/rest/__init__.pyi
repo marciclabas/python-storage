@@ -1,4 +1,4 @@
-from .api import fastapi
+from .server import api
 from .client import ClientKV
 
-__all__ = ['fastapi', 'ClientKV']
+__all__ = ['api', 'ClientKV']

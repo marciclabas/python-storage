@@ -55,4 +55,4 @@ def parse(conn_str: str, type: type[T] | None = None) -> KV[T]:
         engine = lambda: create_engine(parsed_sql.conn_str)
         return SQLKV(type or dict, engine, table=parsed_sql.table) # type: ignore
     
-    raise ValueError(f"Invalid connection string: {conn_str}")
+    raise ValueError(f"Invalid connection string: {conn_str}. Expected 'file://<path>', 'sql+<protocol>://<conn_str>;Table=<table>', 'azure+blob://<conn_str>', or 'azure+blob+container://<conn_str>;Container=<container_name>'")
