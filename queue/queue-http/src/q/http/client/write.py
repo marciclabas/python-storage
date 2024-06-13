@@ -14,7 +14,13 @@ class WriteClientQ(WriteQueue[T], Generic[T]):
     self.write_url = url
     self.dump = dump
 
+  @classmethod
+  def validated(cls, Type: type[T], url: str) -> 'WriteClientQ[T]':
+    from pydantic import TypeAdapter
+    dump = TypeAdapter(Type).dump_json
+    return cls(url, dump=dump)
+
   async def push(self, key: str, value: T) -> Either[QueueError, None]:
     url = urljoin(self.write_url, 'push')
     r = await request(url, 'POST', data=self.dump(value), params=dict(key=key))
-    return r.fmap(lambda _: None)
+    return r.fmap(lambda _: None).mapl(QueueError)

@@ -1,11 +1,36 @@
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, overload
 from q.api import WriteQueue, QueueError
 from fastapi import FastAPI, Request
-from haskellian import either as E, Either, Right
+from haskellian import either as E, Either, Right, Left
 
 T = TypeVar('T')
 
+@overload
 def write_api(
+  queue: WriteQueue[T], *,
+  parse: Callable[[bytes], Either[QueueError, T]] = Right
+) -> FastAPI:
+  ...
+@overload
+def write_api(
+  queue: WriteQueue[T], *, Type: type[T]
+) -> FastAPI:
+  ...
+def write_api(queue, *, parse = None, Type = None): # type: ignore
+  if Type is not None:
+    from pydantic import TypeAdapter
+    Adapter = TypeAdapter(Type)
+    def parse(x):
+      try:
+        return Right(Adapter.validate_json(x))
+      except Exception as e:
+        return Left(QueueError(str(e)))
+  elif parse is None:
+    raise ValueError('Either `parse` or `Type` must be provided')
+  
+  return _write_api(queue, parse=parse)
+  
+def _write_api(
   queue: WriteQueue[T], *,
   parse: Callable[[bytes], Either[QueueError, T]] = Right
 ) -> FastAPI:

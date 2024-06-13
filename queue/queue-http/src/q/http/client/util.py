@@ -10,7 +10,7 @@ def urljoin(part1: str, part2: str):
 
 ErrType = TypeAdapter(ReadError)
 
-def validate_left(raw_json: bytes) -> Left[QueueError, Any]:
+def validate_left(raw_json: bytes) -> Left[ReadError, Any]:
   try:
     return Left(ErrType.validate_json(raw_json))
   except Exception as e:

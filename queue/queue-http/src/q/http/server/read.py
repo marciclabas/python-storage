@@ -1,37 +1,53 @@
-from typing import TypeVar, Sequence, Callable
-import asyncio
+from typing import TypeVar, Sequence, Callable, overload
 from haskellian import Either, Left
-from q.api import ReadQueue, ReadError, QueueError
-from fastapi import FastAPI, Response, status as st
+from q.api import ReadQueue, ReadError, InexistentItem
+from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
+from pydantic import TypeAdapter
 
 T = TypeVar('T')
 U = TypeVar('U')
 
+@overload
 def read_api(
-  queue: ReadQueue[T], *, timeout: int = 15,
+  queue: ReadQueue[T], *,
+  dump: Callable[[T], bytes|str] = lambda x: x # type: ignore
+) -> FastAPI:
+  ...
+@overload
+def read_api(
+  queue: ReadQueue[T], *, Type: type[T]
+) -> FastAPI:
+  ...
+def read_api(queue, *, dump = None, Type = None): # type: ignore
+  if Type is not None:
+    from pydantic import TypeAdapter
+    dump = TypeAdapter(Type).dump_json
+  elif dump is None:
+    raise ValueError('Either `parse` or `Type` must be provided')
+  
+  return _read_api(queue, dump=dump)
+
+def _read_api(
+  queue: ReadQueue[T], *,
   dump: Callable[[T], bytes|str] = lambda x: x # type: ignore
 ) -> FastAPI:
   """
   - `timeout`: timeout for read operations.
   """
 
-  from .util import status
+  from .util import status, with_status
   app = FastAPI(generate_unique_id_function=lambda route: route.name)
 
   @app.get('/read/any')
+  @with_status
   async def read_any():
-    try:
-      async with asyncio.timeout(timeout):
-        e = await queue.read()
-        if e.tag == 'right':
-          k, _ = e.value
-          return Response(k)
-        else:
-          return JSONResponse(content=e.value, status_code=status(e))
-    except asyncio.TimeoutError:
-      return Response('Timed out', status_code=st.HTTP_408_REQUEST_TIMEOUT)
+    async for e in queue.keys():
+      if e.tag == 'right':
+        return e
     
+    return Left(InexistentItem(detail='No keys found'))
+
   @app.get('/read')
   async def read(id: str, remove: bool = False):
     e = await queue._read(id, remove)
@@ -39,7 +55,8 @@ def read_api(
       _, v = e.value
       return Response(dump(v))
     else:
-      return JSONResponse(content=e.value, status_code=status(e))
+      content = TypeAdapter(ReadError).dump_json(e.value)
+      return Response(content, status_code=status(e))
     
   
   @app.get('/keys')

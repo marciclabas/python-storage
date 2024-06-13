@@ -24,7 +24,7 @@ class ClientQueue(Queue[T], ReadClientQ[T], WriteClientQ[T], Generic[T]):
   ): ...
   def __init__(
     self, url = None, *, read_url = None, write_url = None,
-    parse: Callable[[bytes], Either[QueueError, T]] = Right, dump = lambda x: x
+    parse: Callable[[bytes|str], Either[QueueError, T]] = Right, dump = lambda x: x
   ):
     if url:
       self.read_url = urljoin(url, 'read')
@@ -46,7 +46,7 @@ class ClientQueue(Queue[T], ReadClientQ[T], WriteClientQ[T], Generic[T]):
   @classmethod
   def validated(cls, Type: type[T], *, read_url: str, write_url: str) -> 'ClientQueue[T]': ...
   @classmethod
-  def validated(cls, Type, url = None, *, read_url = None, write_url = None) -> 'ClientQueue[T]':
+  def validated(cls, Type, url = None, *, read_url = None, write_url = None) -> 'ClientQueue[T]': # type: ignore
     Model = RootModel[Type]
     return cls(
       url=url, read_url=read_url, write_url=write_url,
