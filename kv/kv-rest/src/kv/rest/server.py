@@ -3,8 +3,9 @@ from functools import wraps
 import inspect
 from fastapi import FastAPI, Response, status as st, Request
 from fastapi.responses import JSONResponse
-from haskellian import either as E, Either, Left, Right, kwargs as kw
-from kv.api import KV, DBError, ReadError, InvalidData
+from pydantic import TypeAdapter
+from haskellian import either as E, Either, Right, kwargs as kw
+from kv.api import KV, ReadError, InvalidData
 
 A = TypeVar('A')
 Ps = ParamSpec('Ps')
@@ -48,7 +49,8 @@ def api(
     if e.tag == 'right':
       return Response(content=dump(e.value))
     else:
-      return JSONResponse(content=e.value, status_code=status(e))
+      content = TypeAdapter(ReadError).dump_json(e.value)
+      return Response(content, status_code=status(e))
   
   @app.get('/has')
   @with_status
