@@ -1,18 +1,18 @@
 from typing import TypeVar, Generic, Any, Literal, AsyncIterable, Sequence, Callable
-from pydantic import TypeAdapter, RootModel
-import httpx
+from pydantic import TypeAdapter, RootModel, ValidationError
 from haskellian import either as E, Either, Left, Right
 from kv.api import KV, InvalidData, ReadError, DBError
+from .request import Request, request
 
 A = TypeVar('A')
 ErrType = TypeAdapter(ReadError)
 SeqType = TypeAdapter(Sequence[str])
 
-def validate_left(raw_json: bytes) -> Left[DBError, Any]:
+def validate_left(raw_json: bytes, status: int) -> Left[DBError, Any]:
   try:
     return Left(ErrType.validate_json(raw_json))
-  except Exception as e:
-    return Left(DBError(e))
+  except ValidationError:
+    return Left(DBError(f'Unexpected status code: {status}. Content: "{raw_json.decode()}"'))
   
 def validate_seq(raw_json: bytes) -> Either[DBError, Sequence[str]]:
   try:
@@ -24,11 +24,13 @@ class ClientKV(KV[A], Generic[A]):
   def __init__(
     self, endpoint: str, *,
     parse: Callable[[bytes], Either[InvalidData, A]] = Right, # type: ignore
-    dump: Callable[[A], bytes|str] = lambda x: x # type: ignore
+    dump: Callable[[A], bytes|str] = lambda x: x, # type: ignore
+    request: Request = request
   ):
     self.endpoint = endpoint
     self.parse = parse
     self.dump = dump
+    self.request = request
 
   @classmethod
   def validated(cls, Type: type[A], endpoint: str) -> 'ClientKV[A]':
@@ -41,9 +43,8 @@ class ClientKV(KV[A], Generic[A]):
   
   async def _req(self, method: Literal['GET', 'POST', 'DELETE'], path: str, data: bytes | str | None = None):
     try:
-      async with httpx.AsyncClient() as client:
-        r = await client.request(method, f"{self.endpoint}/{path}", data=data) # type: ignore
-        return Right(r.content) if r.status_code == 200 else validate_left(r.content)
+      r = await self.request(method, f"{self.endpoint.rstrip('/')}/{path.lstrip('/')}", data=data)
+      return Right(r.content) if r.status_code == 200 else validate_left(r.content, r.status_code)
     except Exception as e:
       return Left(DBError(e))
 
