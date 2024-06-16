@@ -43,7 +43,7 @@ class ReadClientQ(ReadQueue[T], Generic[T]):
       return Left(QueueError(e))
 
   @classmethod
-  def validated(cls, Type: type[T], url: str, *, polling_interval = timedelta(seconds=15)) -> 'ReadClientQ[T]':
+  def validated(cls, Type: type[T], url: str, *, polling_interval = timedelta(seconds=15), request: Request = request) -> 'ReadClientQ[T]':
     from pydantic import TypeAdapter
     Adapter = TypeAdapter(Type)
     def parse(x):
@@ -51,7 +51,7 @@ class ReadClientQ(ReadQueue[T], Generic[T]):
         return Right(Adapter.validate_json(x))
       except Exception as e:
         return Left(QueueError(str(e)))
-    return cls(url, parse=parse, polling_interval=polling_interval)
+    return cls(url, parse=parse, polling_interval=polling_interval, request=request)
 
 
   async def _read(self, id: str | None, remove: bool) -> Either[ReadError, tuple[str, T]]: # type: ignore

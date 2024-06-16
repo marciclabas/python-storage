@@ -18,10 +18,10 @@ class WriteClientQ(WriteQueue[T], Generic[T]):
     self.request = request
 
   @classmethod
-  def validated(cls, Type: type[T], url: str) -> 'WriteClientQ[T]':
+  def validated(cls, Type: type[T], url: str, *, request: Request = request) -> 'WriteClientQ[T]':
     from pydantic import TypeAdapter
     dump = TypeAdapter(Type).dump_json
-    return cls(url, dump=dump)
+    return cls(url, dump=dump, request=request)
 
 
   async def _req(

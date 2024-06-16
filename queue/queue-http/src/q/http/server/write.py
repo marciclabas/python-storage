@@ -16,7 +16,7 @@ def write_api(
   queue: WriteQueue[T], *, Type: type[T]
 ) -> FastAPI:
   ...
-def write_api(queue, *, parse = None, Type = None): # type: ignore
+def write_api(queue, *, parse = Right, Type = None): # type: ignore
   if Type is not None:
     from pydantic import TypeAdapter
     Adapter = TypeAdapter(Type)
@@ -25,8 +25,6 @@ def write_api(queue, *, parse = None, Type = None): # type: ignore
         return Right(Adapter.validate_json(x))
       except Exception as e:
         return Left(QueueError(str(e)))
-  elif parse is None:
-    raise ValueError('Either `parse` or `Type` must be provided')
   
   return _write_api(queue, parse=parse)
   

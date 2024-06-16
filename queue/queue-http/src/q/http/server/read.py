@@ -19,12 +19,10 @@ def read_api(
   queue: ReadQueue[T], *, Type: type[T]
 ) -> FastAPI:
   ...
-def read_api(queue, *, dump = None, Type = None): # type: ignore
+def read_api(queue, *, dump = lambda x: x, Type = None): # type: ignore
   if Type is not None:
     from pydantic import TypeAdapter
     dump = TypeAdapter(Type).dump_json
-  elif dump is None:
-    raise ValueError('Either `parse` or `Type` must be provided')
   
   return _read_api(queue, dump=dump)
 
