@@ -1,11 +1,12 @@
-from typing import TypeVar, Generic, AsyncIterable, Callable, Sequence
+from typing import TypeVar, Generic, AsyncIterable, Callable, Sequence, Literal
 import asyncio
 from datetime import timedelta
 from pydantic import TypeAdapter
 from haskellian import Either, Left, Right, asyn_iter as AI
 import json
 from q.api import ReadQueue, ReadError, QueueError
-from .util import request, urljoin
+from .util import urljoin, validate_left
+from .request import request, Request
 
 T = TypeVar('T')
 
@@ -24,10 +25,22 @@ class ReadClientQ(ReadQueue[T], Generic[T]):
     self, url: str, *,
     parse: Callable[[bytes], Either[QueueError, T]] = Right,
     polling_interval = timedelta(seconds=15),
+    request: Request = request
   ):
     self.read_url = url
     self.parse = parse
     self.polling_interval = polling_interval
+    self.request = request
+
+  async def _req(
+    self, method: Literal['GET', 'POST', 'DELETE'], path: str, *,
+    data: bytes | str | None = None, params: dict = {}
+  ):
+    try:
+      r = await self.request(method, urljoin(self.read_url, path), data=data)
+      return Right(r.content) if r.status_code == 200 else validate_left(r.content, r.status_code)
+    except Exception as e:
+      return Left(QueueError(e))
 
   @classmethod
   def validated(cls, Type: type[T], url: str, *, polling_interval = timedelta(seconds=15)) -> 'ReadClientQ[T]':
@@ -44,8 +57,7 @@ class ReadClientQ(ReadQueue[T], Generic[T]):
   async def _read(self, id: str | None, remove: bool) -> Either[ReadError, tuple[str, T]]: # type: ignore
     
     if id is None: # read/any -> returns an arbitrary id
-      url = urljoin(self.read_url, 'read/any')
-      r = await request(url, 'GET')
+      r = await self._req('GET', 'read/any')
       if r.tag == 'left':
         if r.value.reason == 'inexistent-item':
           await asyncio.sleep(self.polling_interval.total_seconds())
@@ -53,8 +65,7 @@ class ReadClientQ(ReadQueue[T], Generic[T]):
 
       id: str = json.loads(r.unsafe())
 
-    url = urljoin(self.read_url, 'read')
-    data = await request(url, 'GET', params=dict(id=id, remove=remove))
+    data = await self._req('GET', 'read', params=dict(id=id, remove=remove))
     return data.bind(self.parse).fmap(lambda val: (id, val))
     
   async def _items(self) -> AsyncIterable[Either[QueueError, tuple[str, T]]]:
@@ -67,8 +78,7 @@ class ReadClientQ(ReadQueue[T], Generic[T]):
 
   @AI.lift
   async def keys(self) -> AsyncIterable[Either[QueueError, str]]:
-    url = urljoin(self.read_url, 'keys')
-    r = await request(url, 'GET')
+    r = await self._req('GET', 'keys')
     if r.tag == 'left':
       yield r.mapl(QueueError)
     else:
