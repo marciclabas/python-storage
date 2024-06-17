@@ -29,7 +29,7 @@ class WriteClientQ(WriteQueue[T], Generic[T]):
       data: bytes | str | None = None, params: dict = {}
     ):
       try:
-        r = await self.request(method, urljoin(self.write_url, path), data=data)
+        r = await self.request(method, urljoin(self.write_url, path), data=data, params=params)
         return Right(r.content) if r.status_code == 200 else validate_left(r.content, r.status_code)
       except Exception as e:
         return Left(QueueError(e))
