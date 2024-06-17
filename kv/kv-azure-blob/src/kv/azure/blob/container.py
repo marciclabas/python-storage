@@ -39,6 +39,11 @@ class BlobContainerKV(LocatableKV[A], Generic[A]):
       dump=lambda x: Model(x).model_dump_json(exclude_none=True)
     )
 
+  @classmethod
+  def from_conn_str(cls, conn_str: str, container: str) -> 'BlobContainerKV[bytes]':
+    client = lambda: BlobServiceClient.from_connection_string(conn_str)
+    return BlobContainerKV(client=client, container=container)
+
   client: Callable[[], BlobServiceClient]
   container: str
   parse: Callable[[bytes], Either[InvalidData, A]] = Right # type: ignore
