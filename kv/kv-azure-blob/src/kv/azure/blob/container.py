@@ -96,5 +96,5 @@ class BlobContainerKV(LocatableKV[A], Generic[A]):
         yield Right((key, item.value))
 
   def url(self, key: str, *, expiry: datetime | None = None) -> str:
-    bc = self.client.get_blob_client(self.container, key)
+    bc = self.client().get_blob_client(self.container, key)
     return blob_url(bc, expiry=expiry)
