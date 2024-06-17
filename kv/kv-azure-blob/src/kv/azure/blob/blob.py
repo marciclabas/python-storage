@@ -30,7 +30,7 @@ class BlobKV(LocatableKV[A], Generic[A]):
   @overload
   @classmethod
   def validated(
-    cls, Type: type[A], client_supplier: Callable[[], BlobServiceClient], /,
+    cls, Type: type[A], client: Callable[[], BlobServiceClient], /,
     split_key: Callable[[str], tuple[str, str]] = default_split
   ) -> 'BlobKV[A]':
     ...
@@ -40,14 +40,13 @@ class BlobKV(LocatableKV[A], Generic[A]):
     cls, Type: type[A], client: Callable[[], BlobServiceClient] | str,
     split_key: Callable[[str], tuple[str, str]] = default_split
   ) -> 'BlobKV[A]':
+  
     if isinstance(client, str):
-      client_fn = (lambda: BlobServiceClient.from_connection_string(client))
-    else:
-      client_fn = client
+      client = lambda: BlobServiceClient.from_connection_string(client)
     from pydantic import RootModel
     Model = RootModel[Type]
     return BlobKV(
-      client=client_fn, split_key=split_key,
+      client=client, split_key=split_key,
       parse=lambda b: E.validate_json(b, Model).fmap(lambda x: x.root).mapl(InvalidData),
       dump=lambda x: Model(x).model_dump_json(exclude_none=True)
     )
@@ -57,11 +56,11 @@ class BlobKV(LocatableKV[A], Generic[A]):
     cls, conn_str: str,
     split_key: Callable[[str], tuple[str, str]] = default_split
   ) -> 'BlobKV[A]':
-    return BlobKV(client=lambda: BlobServiceClient.from_connection_string(conn_str), split_key=split_key)
+    return BlobKV(lambda: BlobServiceClient.from_connection_string(conn_str), split_key=split_key)
 
   def _kv(self, container: str) -> BlobContainerKV:
     return BlobContainerKV(
-      client=lambda: self.client().get_container_client(container),
+      client=self.client, container=container,
       parse=self.parse, dump=self.dump
     )
 
@@ -78,8 +77,8 @@ class BlobKV(LocatableKV[A], Generic[A]):
     return self._kv(container)._read(blob)
   
   async def _containers(self) -> Sequence[str]:
-    containers = await AI.syncify(self.client().list_containers())
-    return [c.name for c in containers] # type: ignore (mr azure isn't very good at python types, it seems)
+    async with self.client() as client:
+      return [c.name async for c in client.list_containers()] # type: ignore
   
   @E.do[DBError]()
   async def _container_keys(self, container: str):
