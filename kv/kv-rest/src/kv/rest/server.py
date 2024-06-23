@@ -1,4 +1,4 @@
-from typing import TypeVar, Sequence, Any, ParamSpec, Callable, Coroutine
+from typing import TypeVar, Sequence, Any, ParamSpec, Callable, Awaitable
 from functools import wraps
 import inspect
 from fastapi import FastAPI, Response, status as st, Request
@@ -18,7 +18,7 @@ def status(e: Either[ReadError, Any]):
   else:
     return st.HTTP_404_NOT_FOUND
 
-def with_status(func: Callable[Ps, Coroutine[Either[ReadError, A], Any, Any]]):
+def with_status(func: Callable[Ps, Awaitable[Either[ReadError, A]]]):
   @wraps(func)
   async def wrapper(response: Response, *args: Ps.args, **kwargs: Ps.kwargs) -> ReadError | A:
     e = await func(*args, **kwargs)
@@ -66,5 +66,11 @@ def api(
   @with_status
   async def delete(key: str):
     return await kv.delete(key)
+  
+
+  @app.delete('/clear')
+  @with_status
+  async def clear():
+    return await kv.clear()
   
   return app

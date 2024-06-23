@@ -27,6 +27,7 @@ def parse(conn_str: str, type: type[T] | None = None) -> KV[T]:
     - `sql+<protocol>://<conn_str>;Table=<table>`: `SQLKV`
     - `azure+blob://<conn_str>`: `BlobKV`
     - `azure+blob+container://<conn_str>;Container=<container_name>`: `BlobContainerKV`
+    - `https://<endpoint>` (or `http://<endpoint>`): `ClientKV`
     """
     if conn_str.startswith('file://'):
         from kv.fs import FilesystemKV
@@ -45,10 +46,14 @@ def parse(conn_str: str, type: type[T] | None = None) -> KV[T]:
         from kv.azure.blob import BlobContainerKV
         from azure.storage.blob.aio import BlobServiceClient
         container = parts[1].split('=')[1]
-        client = lambda: BlobServiceClient.from_connection_string(parts[0]).get_container_client(container)
+        client = lambda: BlobServiceClient.from_connection_string(parts[0])
 
-        return BlobContainerKV(client) if type is None else BlobContainerKV.validated(type, client)
+        return BlobContainerKV(client, container) if type is None else BlobContainerKV.validated(type, client, container)
     
+    if conn_str.startswith("http://") or conn_str.startswith("https://"):
+        from kv.rest import ClientKV
+        return ClientKV(conn_str) if type is None else ClientKV.validated(type, conn_str)
+
     if (parsed_sql := parse_sql(conn_str)) is not None:
         from sqlalchemy import create_engine
         from kv.sql import SQLKV

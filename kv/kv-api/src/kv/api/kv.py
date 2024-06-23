@@ -1,6 +1,6 @@
 from typing_extensions import TypeVar, Generic, AsyncIterable, Sequence, Awaitable
 from abc import ABC, abstractmethod
-from haskellian import Either, Left, Right, IsLeft, promise as P, AsyncIter, asyn_iter as AI
+from haskellian import Either, Left, Right, IsLeft, promise as P, AsyncIter, either as E
 from .errors import InexistentItem, DBError, InvalidData, ReadError
 
 T = TypeVar('T')
@@ -14,6 +14,7 @@ class KV(ABC, Generic[T]):
     - `sql+<protocol>://<conn_str>;Table=<table>`: `SQLKV`
     - `azure+blob://<conn_str>`: `BlobKV`
     - `azure+blob+container://<conn_str>;Container=<container_name>`: `BlobContainerKV`
+    - `https://<endpoint>` (or `http://<endpoint>`): `ClientKV`
     """
     from .conn_strings import parse
     return parse(conn_str, type)
@@ -86,3 +87,13 @@ class KV(ABC, Generic[T]):
   @P.lift
   async def move(self, key: str, to: 'KV[T]', to_key: str) -> Either[DBError|InexistentItem, None]:
     return await self._move(key, to, to_key)
+
+  @E.do[DBError]()
+  async def _clear(self):
+    keys = (await self.keys()).unsafe()
+    for key in keys:
+      (await self.delete(key)).unsafe()
+
+  @P.lift
+  async def clear(self):
+    return await self._clear()

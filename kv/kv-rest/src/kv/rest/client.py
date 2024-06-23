@@ -59,6 +59,10 @@ class ClientKV(KV[A], Generic[A]):
   async def _delete(self, key: str):
     r = await self._req('DELETE', f'delete?key={key}')
     return r.fmap(lambda _: None)
+  
+  async def _clear(self):
+    r = await self._req('DELETE', 'clear')
+    return r.fmap(lambda _: None)
 
   async def _items(self, batch_size: int | None = None) -> AsyncIterable[Either[DBError | InvalidData, tuple[str, A]]]:
     keys = await self._keys()

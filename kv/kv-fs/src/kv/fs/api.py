@@ -1,7 +1,7 @@
 from typing_extensions import TypeVar, Generic, Callable, AsyncIterable, Never, Sequence
 from dataclasses import dataclass
 import os
-from haskellian import either as E, Right, promise as P, asyn_iter as AI
+from haskellian import either as E, Right, Left, Either
 from pydantic import RootModel
 from kv.api import KV, LocatableKV, InexistentItem, InvalidData, DBError
 import fs
@@ -98,3 +98,10 @@ class FilesystemKV(LocatableKV[T], Generic[T]):
       case E.Left() as e:
         return E.Left(DBError(detail=str(e.value)))
       
+  async def _clear(self) -> Either[DBError, None]:
+    from shutil import rmtree
+    try:
+      rmtree(self.base_path)
+      return Right(None)
+    except Exception as e:
+      return Left(DBError(detail=str(e)))

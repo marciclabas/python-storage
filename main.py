@@ -1,13 +1,9 @@
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from q.http.server import api
 import kv.rest
-from q.kv import QueueKV
 from kv.fs import FilesystemKV
 
 app = FastAPI()
-queue = QueueKV.sqlite(dict, 'test/queue.sqlite')
-app.mount('/queue', api(queue, Type=dict))
 
 blobs = FilesystemKV[bytes]('blobs')
 app.mount('/blobs', kv.rest.api(blobs))
@@ -16,17 +12,17 @@ app.mount('/blobs', kv.rest.api(blobs))
 def home():
   return 'Hello!'
 
-@app.middleware('http')
-async def auth_middleware(request: Request, call_next):
-    auth = request.headers.get('Authorization')
-    if not auth or len(parts := auth.split(' ')) != 2 or parts[0] != 'Bearer':
-      print(f'Bad authorization:', auth)
-      return Response(status_code=401)
-    if parts[1] != 'SECRET':
-      print(f'Bad token: "{parts[1]}"')
-      return Response(status_code=401)
+# @app.middleware('http')
+# async def auth_middleware(request: Request, call_next):
+#     auth = request.headers.get('Authorization')
+#     if not auth or len(parts := auth.split(' ')) != 2 or parts[0] != 'Bearer':
+#       print(f'Bad authorization:', auth)
+#       return Response(status_code=401)
+#     if parts[1] != 'SECRET':
+#       print(f'Bad token: "{parts[1]}"')
+#       return Response(status_code=401)
     
-    return await call_next(request)
+#     return await call_next(request)
 
 app.add_middleware(
   CORSMiddleware,
