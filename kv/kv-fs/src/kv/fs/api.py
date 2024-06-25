@@ -25,9 +25,9 @@ class FilesystemKV(LocatableKV[T], Generic[T]):
   extension: str | None = None
   parse: Callable[[bytes], E.Either[InvalidData, T]] = lambda x: E.Right(x) # type: ignore
   dump: Callable[[T], bytes|str] = lambda x: x # type: ignore
-  
-  def __post_init__(self):
-    os.makedirs(self.base_path, exist_ok=True)
+
+  def __repr__(self):
+    return f'FilesystemKV({self.base_path})'
 
   def _path(self, key: str) -> str:
     return os.path.abspath(os.path.join(self.base_path, f'{key}{self.extension or ""}'))
